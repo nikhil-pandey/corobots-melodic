@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find create_bringup)/launch/create_2.launch"></include>
+    <node pkg="usb_cam" type="usb_cam_node" name="camera"></node>
+    <include file="$(find openpose_ros)/launch/openpose_ros.launch">
+        <arg name="display_output" value="true"/>
+    </include>
+<!--    <node pkg="corobot_follower" type="follower.py" name="follower"></node>-->
+</launch>
