@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import math
 import sys
 import time
 import rospy
@@ -17,6 +17,7 @@ import yaml
 import laser_geometry.laser_geometry as lg
 import message_filters
 import joblib
+from segment import Segment
 
 # rospy.get_param('~name')
 ODOM_TOPIC = '/odom'
@@ -28,6 +29,122 @@ CAMERA_INTRINSIC_CALIBRATION_FILE = '/home/np7803/create_ws/src/corobot_follower
 TIME_DIFFERENCE_IMAGE_LASER = 1
 LASER_POINT_RADIUS = 3
 HUMAN_LIST_WITH_DISTANCE_PUBLISHER = '/openpose_ros/human_list_distance'
+
+C_MOUTH = 0
+C_NECK = 1
+C_LEFT_SHOULDER = 2
+C_LEFT_ARM = 3
+C_LEFT_WRIST = 4
+C_RIGHT_SHOULDER = 5
+C_RIGHT_ARM = 6
+C_RIGHT_WRIST = 7
+C_LEFT_HIP = 8
+C_LEFT_KNEE = 9
+C_LEFT_FOOT = 10
+C_RIGHT_HIP = 11
+C_RIGHT_KNEE = 12
+C_RIGHT_FOOT = 13
+C_LEFT_EYE = 14
+C_RIGHT_EYE = 15
+C_LEFT_EAR = 16
+C_RIGHT_EAR = 17
+
+
+def angle_between(p0, p1, p2):
+    x1 = p1.x - p0.x
+    y1 = p1.y - p0.y
+    x2 = p1.x - p2.x
+    y2 = p1.y - p2.y
+    x3 = p2.x - p0.x
+    y3 = p2.y - p0.y
+    b = x1 * x1 + y1 * y1
+    a = x2 * x2 + y2 * y2
+    c = x3 * x3 + y3 * y3
+    return math.acos((a + b - c) / math.sqrt(4 * a * b))
+
+
+def has_all_keypoints(person, keypoints):
+    for keypoint in keypoints:
+        if person.body_key_points_with_prob[keypoint].prob == 0:
+            return False
+    return True
+
+
+def has_raised_hand(person):
+    try:
+        if not has_all_keypoints(person,
+                                 [C_LEFT_SHOULDER, C_RIGHT_SHOULDER, C_LEFT_FOOT, C_LEFT_KNEE, C_LEFT_HIP, C_RIGHT_FOOT,
+                                  C_RIGHT_KNEE, C_RIGHT_HIP, C_LEFT_WRIST, C_LEFT_ARM, C_RIGHT_WRIST, C_RIGHT_ARM]):
+            rospy.loginfo('Dont have all the required key points!')
+            return False
+
+        kps = person.body_key_points_with_prob
+
+        if kps[C_LEFT_SHOULDER].x > kps[C_RIGHT_SHOULDER].x:
+            rospy.loginfo('Dont turn your back on me!')
+            return False
+
+        if angle_between(kps[C_LEFT_FOOT], kps[C_LEFT_KNEE],
+                         kps[C_LEFT_HIP]) < 2.5 or \
+                angle_between(kps[C_RIGHT_FOOT], kps[C_RIGHT_KNEE],
+                              kps[C_RIGHT_HIP]) < 2.5:
+            rospy.loginfo('Not standing straight!')
+            return False
+
+        if kps[C_LEFT_WRIST].y < kps[C_LEFT_ARM].y and \
+                kps[C_LEFT_WRIST].x < kps[C_LEFT_SHOULDER].x \
+                and kps[C_LEFT_WRIST].x < kps[C_LEFT_ARM].x:
+            if angle_between(kps[C_LEFT_WRIST], kps[C_LEFT_ARM],
+                             kps[C_LEFT_SHOULDER]) < 1:
+                return True
+            rospy.loginfo('Left hand angle not so small! %s' % (angle_between(kps[C_LEFT_WRIST], kps[C_LEFT_ARM],
+                                                                              kps[C_LEFT_SHOULDER])))
+        rospy.loginfo('Left wrist not in right place')
+
+        if kps[C_RIGHT_WRIST].y < kps[C_RIGHT_ARM].y and \
+                kps[C_RIGHT_WRIST].x > kps[C_RIGHT_SHOULDER].x \
+                and kps[C_RIGHT_WRIST].x > kps[C_RIGHT_ARM].x:
+            if angle_between(kps[C_RIGHT_WRIST], kps[C_RIGHT_ARM],
+                             kps[C_RIGHT_SHOULDER]) < 1:
+                return True
+            rospy.loginfo('right hand angle not so small %s' % (angle_between(kps[C_RIGHT_WRIST], kps[C_RIGHT_ARM],
+                                                                              kps[C_RIGHT_SHOULDER])))
+        rospy.loginfo('right hand not in right place %s %s %s' % (
+            kps[C_RIGHT_WRIST].y < kps[C_RIGHT_ARM].y, kps[C_RIGHT_WRIST].x > kps[C_RIGHT_SHOULDER].x,
+            kps[C_RIGHT_WRIST].x > kps[C_RIGHT_ARM].x))
+        return False
+    except:
+        return False
+
+
+def intersect((p1, p2), (p3, p4)):
+    return Segment((p1.x, p1.y), (p2.x, p2.y)).intersection(Segment((p3.x, p3.y), (p4.x, p4.y))) is not None
+
+
+def has_crossed_hand(person):
+    try:
+        if not has_all_keypoints(person, [C_LEFT_WRIST, C_RIGHT_WRIST, C_LEFT_ARM, C_RIGHT_ARM, C_LEFT_SHOULDER,
+                                          C_RIGHT_SHOULDER]):
+            rospy.loginfo('Dont have all the required key points!')
+            return False
+
+        kps = person.body_key_points_with_prob
+        left_wrist = kps[C_LEFT_WRIST]
+        right_wrist = kps[C_RIGHT_WRIST]
+        left_arm = kps[C_LEFT_ARM]
+        right_arm = kps[C_RIGHT_ARM]
+
+        if kps[C_LEFT_SHOULDER].x > kps[C_RIGHT_SHOULDER].x:
+            rospy.loginfo('Dont turn your back on me!')
+            return False
+
+        if not intersect((left_wrist, left_arm), (right_wrist, right_arm)):
+            rospy.loginfo('Does not intersect')
+            return False
+
+        return True
+    except:
+        return False
 
 
 def read_transformation_matrix(file):
@@ -99,22 +216,23 @@ class Follower(object):
         rospy.loginfo('Reading intrinsic calibration')
         self.lens, self.K, self.D = read_instrinsic_calibration(CAMERA_INTRINSIC_CALIBRATION_FILE)
 
+        self.frame = None
+        self.laser_points = None
+        self.distances = None
+        self.visualize = True
+
         self.odom_subscriber = rospy.Subscriber(ODOM_TOPIC, Odometry, self.odometry_callback)
-        # self.image_subscriber = rospy.Subscriber(CAMERA_TOPIC, Image, self.image_callback)
+        self.image_subscriber = rospy.Subscriber(CAMERA_TOPIC, Image, self.image_callback)
         self.openpose_subscriber = rospy.Subscriber(HUMAN_LIST, OpenPoseHumanList, self.openpose_callback)
 
-        scan_sub = message_filters.Subscriber(LIDAR_TOPIC, LaserScan, queue_size=1)
-        image_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=1)
-        ts = message_filters.ApproximateTimeSynchronizer([scan_sub, image_sub], 10, TIME_DIFFERENCE_IMAGE_LASER)
-        ts.registerCallback(self.image_laser_callback)
+        # scan_sub = message_filters.Subscriber(LIDAR_TOPIC, LaserScan, queue_size=1)
+        # image_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=1)
+        # ts = message_filters.ApproximateTimeSynchronizer([scan_sub, image_sub], 10, TIME_DIFFERENCE_IMAGE_LASER)
+        # ts.registerCallback(self.image_laser_callback)
 
         self.human_list_publisher = rospy.Publisher(HUMAN_LIST_WITH_DISTANCE_PUBLISHER, OpenPoseHumanList, queue_size=1)
 
         rospy.on_shutdown(self.cleanup)
-        self.frame = None
-        self.laser_points = None
-        self.distances = None
-        self.visualize = False
         rospy.loginfo('Done initializing')
 
     def run(self):
@@ -124,6 +242,14 @@ class Follower(object):
 
     def odometry_callback(self, msg):
         pass
+
+    def image_callback(self, camera_msg):
+        try:
+            frame = self.bridge.imgmsg_to_cv2(camera_msg)
+        except CvBridgeError as e:
+            print('Error converting the frame', e)
+        self.frame = np.array(frame, dtype=np.uint8)
+        rospy.loginfo('Done laser camera callback')
 
     def image_laser_callback(self, lidar_msg, camera_msg):
         try:
@@ -154,28 +280,35 @@ class Follower(object):
 
     def openpose_callback(self, msg):
         number_of_people = msg.num_humans
-        frame = self.frame
 
-        if frame is None:
+        if self.frame is None:
             return
+        frame = np.array(self.frame, dtype=np.uint8)
         if number_of_people > 0:
             for person in msg.human_list:
                 kp_count = person.num_body_key_points_with_non_zero_prob
                 bbox = person.body_bounding_box
-                if self.frame is not None:
+                if frame is not None:
                     if self.visualize:
                         cv2.rectangle(frame, (int(bbox.x), int(bbox.y + bbox.height)),
                                       (int(bbox.x + bbox.width), int(bbox.y)),
                                       (0, 255, 0), 2)
+
+                    if has_raised_hand(person):
+                        cv2.putText(frame, 'Start', (int(bbox.x), int(bbox.y)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=2)
+                    elif has_crossed_hand(person):
+                        cv2.putText(frame, 'Stop', (int(bbox.x), int(bbox.y)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=2)
                     if self.laser_points is not None:
                         distances = self.distances[
                             np.where((self.laser_points > bbox.x) & (self.laser_points < (bbox.x + bbox.width)))]
                         distance = np.median(distances)
                         person.distance = distance
-                        if self.visualize:
-                            cv2.putText(frame, str(np.round(distance, 2)), (int(bbox.x), int(bbox.y)),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                                        (0, 0, 255))
+                        # if self.visualize:
+                        #     cv2.putText(frame, str(np.round(distance, 2)), (int(bbox.x), int(bbox.y)),
+                        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        #                 (0, 0, 255))
         if frame is not None:
             cv2.imshow(self.node_name, frame)
 

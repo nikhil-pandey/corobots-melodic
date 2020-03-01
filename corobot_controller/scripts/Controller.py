@@ -10,7 +10,7 @@ class Controller:
 
     def __init__(self):
         rospy.init_node('controller')
-        self.commandVelocityPublisher = rospy.Publisher('mobile_base/commands/velocity', Twist)
+        self.commandVelocityPublisher = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
     def run(self):
         fd = sys.stdin.fileno()
