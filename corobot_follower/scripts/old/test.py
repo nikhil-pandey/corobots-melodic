@@ -13,9 +13,11 @@ def get_z(T_cam_world, T_world_pc, K):
     z = np.asarray(z).squeeze()
     return z
 
-ranges, cloud, frame, obj_points, transformation_matrix, K, D, rotation_vector, translation_vector = joblib.load('test.dump')
+ranges, cloud, frame, obj_points, transformation_matrix, K, D, rotation_vector, translation_vector = joblib.load('old/test.dump')
 frame_n = np.array(frame, dtype=np.uint8)
 Z = get_z(transformation_matrix, obj_points, K)
 obj_points_nz = obj_points[Z > 0]
+distances = (obj_points[:, 0] ** 2 + obj_points[:, 1] ** 2) ** 0.5
 img_points, _ = cv2.projectPoints(obj_points_nz, rotation_vector, translation_vector, K, D)
 img_points = np.squeeze(img_points)
+

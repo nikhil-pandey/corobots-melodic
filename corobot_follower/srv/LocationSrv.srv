@@ -1,0 +1,4 @@
+corobot_follower/OpenPoseHumanList human_list
+sensor_msgs/LaserScan scan
+---
+corobot_follower/HumanLocationList location_list

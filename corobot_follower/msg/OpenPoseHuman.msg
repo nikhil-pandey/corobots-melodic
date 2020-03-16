@@ -1,0 +1,3 @@
+int32 key_points_count
+BoundingBox bounding_box
+PointWithProb[25] key_points

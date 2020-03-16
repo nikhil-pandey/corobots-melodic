@@ -22,4 +22,5 @@ roslaunch corobot_bringup robot_base.launch
 mkdir corobot_ws
 git clone git@github.com:nikhil-pandey/corobots-melodic.git src
 export ROS_MASTER_URL=http://129.21.84.118:11311
+roslaunch corobot_bringup gpu.launch
 ```

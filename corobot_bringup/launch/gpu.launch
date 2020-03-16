@@ -1,6 +1,10 @@
 <launch>
-    <include file="$(find openpose_ros)/launch/openpose_ros.launch">
-        <arg name="display_output" value="true"/>
-    </include>
-    <node pkg="corobot_follower" type="follower.py" name="follower"></node>
+    <!--    <include file="$(find openpose_ros)/launch/openpose_ros.launch">-->
+    <!--        <arg name="display_output" value="true"/>-->
+    <!--    </include>-->
+    <node pkg="corobot_follower" type="openpose_service.py" name="openpose_service" output="screen"></node>
+    <node pkg="corobot_follower" type="gesture_service.py" name="gesture_service" output="screen"></node>
+    <node pkg="corobot_follower" type="location_service.py" name="location_service" output="screen"></node>
+    <node pkg="corobot_follower" type="tracker.py" name="tracker" output="screen"></node>
+    <node pkg="corobot_follower" type="goto.py" name="goto" output="screen"></node>
 </launch>

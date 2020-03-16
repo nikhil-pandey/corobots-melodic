@@ -10,6 +10,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  message_generation
   std_msgs
   sensor_msgs
   nav_msgs
@@ -52,6 +53,17 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
+add_message_files(
+  FILES
+  BoundingBox.msg
+  OpenPoseHuman.msg
+  OpenPoseHumanList.msg
+  PointWithProb.msg
+  OpenPoseGesture.msg
+  OpenPoseGestureList.msg
+  HumanLocation.msg
+  HumanLocationList.msg
+)
 # add_message_files(
 #   FILES
 #   Message1.msg
@@ -59,6 +71,12 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
+add_service_files(
+  FILES
+  EstimatePoseSrv.srv
+  GesturesSrv.srv
+  LocationSrv.srv
+)
 # add_service_files(
 #   FILES
 #   Service1.srv
@@ -73,6 +91,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 # generate_messages(
 #   DEPENDENCIES
 #   std_msgs  # Or other packages containing msgs
@@ -108,6 +131,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
+  CATKIN_DEPENDS message_runtime
 #  INCLUDE_DIRS include
 #  LIBRARIES corobot_follower
 #  CATKIN_DEPENDS other_catkin_pkg

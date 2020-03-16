@@ -26,7 +26,7 @@ LIDAR_TOPIC = '/scan'
 HUMAN_LIST = '/openpose_ros/human_list'
 LASER_CALIBRATION_FILE = '/home/np7803/create_ws/src/camera_2d_lidar_calibration/data/calibration_result.txt'
 CAMERA_INTRINSIC_CALIBRATION_FILE = '/home/np7803/create_ws/src/corobot_follower/data/camera_intrinsic_calibration.txt'
-TIME_DIFFERENCE_IMAGE_LASER = 1
+TIME_DIFFERENCE_IMAGE_LASER_OPENPOSE = 3
 LASER_POINT_RADIUS = 3
 HUMAN_LIST_WITH_DISTANCE_PUBLISHER = '/openpose_ros/human_list_distance'
 
@@ -70,6 +70,23 @@ def has_all_keypoints(person, keypoints):
     return True
 
 
+def is_standing(person):
+    try:
+        kps = person.body_key_points_with_prob
+        return angle_between(kps[C_LEFT_FOOT], kps[C_LEFT_KNEE], kps[C_LEFT_HIP]) >= 2.5 or angle_between(
+            kps[C_RIGHT_FOOT], kps[C_RIGHT_KNEE], kps[C_RIGHT_HIP]) >= 2.5
+    except:
+        return False
+
+
+def is_facing_towards_robot(person):
+    try:
+        kps = person.body_key_points_with_prob
+        return kps[C_LEFT_SHOULDER].x < kps[C_RIGHT_SHOULDER].x
+    except:
+        return False
+
+
 def has_raised_hand(person):
     try:
         if not has_all_keypoints(person,
@@ -80,14 +97,11 @@ def has_raised_hand(person):
 
         kps = person.body_key_points_with_prob
 
-        if kps[C_LEFT_SHOULDER].x > kps[C_RIGHT_SHOULDER].x:
+        if not is_facing_towards_robot(person):
             rospy.loginfo('Dont turn your back on me!')
             return False
 
-        if angle_between(kps[C_LEFT_FOOT], kps[C_LEFT_KNEE],
-                         kps[C_LEFT_HIP]) < 2.5 or \
-                angle_between(kps[C_RIGHT_FOOT], kps[C_RIGHT_KNEE],
-                              kps[C_RIGHT_HIP]) < 2.5:
+        if not is_standing(person):
             rospy.loginfo('Not standing straight!')
             return False
 
@@ -134,7 +148,7 @@ def has_crossed_hand(person):
         left_arm = kps[C_LEFT_ARM]
         right_arm = kps[C_RIGHT_ARM]
 
-        if kps[C_LEFT_SHOULDER].x > kps[C_RIGHT_SHOULDER].x:
+        if not is_facing_towards_robot(person):
             rospy.loginfo('Dont turn your back on me!')
             return False
 
@@ -221,14 +235,15 @@ class Follower(object):
         self.distances = None
         self.visualize = True
 
-        self.odom_subscriber = rospy.Subscriber(ODOM_TOPIC, Odometry, self.odometry_callback)
-        self.image_subscriber = rospy.Subscriber(CAMERA_TOPIC, Image, self.image_callback)
-        self.openpose_subscriber = rospy.Subscriber(HUMAN_LIST, OpenPoseHumanList, self.openpose_callback)
+        # self.image_subscriber = rospy.Subscriber(CAMERA_TOPIC, Image, self.image_callback)
+        # self.openpose_subscriber = rospy.Subscriber(HUMAN_LIST, OpenPoseHumanList, self.openpose_callback)
 
-        # scan_sub = message_filters.Subscriber(LIDAR_TOPIC, LaserScan, queue_size=1)
-        # image_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=1)
-        # ts = message_filters.ApproximateTimeSynchronizer([scan_sub, image_sub], 10, TIME_DIFFERENCE_IMAGE_LASER)
-        # ts.registerCallback(self.image_laser_callback)
+        scan_sub = message_filters.Subscriber(LIDAR_TOPIC, LaserScan, queue_size=20)
+        image_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=20)
+        openpose_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=20)
+        ts = message_filters.ApproximateTimeSynchronizer([scan_sub, image_sub, openpose_sub], 10,
+                                                         TIME_DIFFERENCE_IMAGE_LASER_OPENPOSE)
+        ts.registerCallback(self.image_laser_openpose_callback)
 
         self.human_list_publisher = rospy.Publisher(HUMAN_LIST_WITH_DISTANCE_PUBLISHER, OpenPoseHumanList, queue_size=1)
 
@@ -240,9 +255,6 @@ class Follower(object):
         while not rospy.is_shutdown():
             rate.sleep()
 
-    def odometry_callback(self, msg):
-        pass
-
     def image_callback(self, camera_msg):
         try:
             frame = self.bridge.imgmsg_to_cv2(camera_msg)
@@ -251,7 +263,7 @@ class Follower(object):
         self.frame = np.array(frame, dtype=np.uint8)
         rospy.loginfo('Done laser camera callback')
 
-    def image_laser_callback(self, lidar_msg, camera_msg):
+    def image_laser_openpose_callback(self, lidar_msg, camera_msg, openpose_msg):
         try:
             frame = self.bridge.imgmsg_to_cv2(camera_msg)
         except CvBridgeError as e:
@@ -265,18 +277,7 @@ class Follower(object):
         distances = (obj_points[:, 0] ** 2 + obj_points[:, 1] ** 2) ** 0.5
         img_points, _ = cv2.projectPoints(obj_points, self.rotation_vector, self.translation_vector, self.K, self.D)
         img_points = np.squeeze(img_points)
-        self.laser_points = img_points[:, 0]
-        self.distances = distances
-        if self.visualize:
-            for i in range(len(img_points)):
-                try:
-                    xy = (int(round(img_points[i][0])), int(round(img_points[i][1])))
-                    cv2.circle(frame, xy, LASER_POINT_RADIUS, (0, 255, 255), 1)
-                    cv2.putText(frame, str(np.round(distances[i], 2)), xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
-                except OverflowError:
-                    continue
-        self.frame = np.array(frame, dtype=np.uint8)
-        rospy.loginfo('Done laser camera callback')
+        laser_points = img_points[:, 0]
 
     def openpose_callback(self, msg):
         number_of_people = msg.num_humans
@@ -288,38 +289,19 @@ class Follower(object):
             for person in msg.human_list:
                 kp_count = person.num_body_key_points_with_non_zero_prob
                 bbox = person.body_bounding_box
-                if frame is not None:
-                    if self.visualize:
-                        cv2.rectangle(frame, (int(bbox.x), int(bbox.y + bbox.height)),
-                                      (int(bbox.x + bbox.width), int(bbox.y)),
-                                      (0, 255, 0), 2)
+                person.waiving_hand = has_raised_hand(person)
+                person.crossing_hand = has_crossed_hand(person)
+                mask = np.where((laser_points > bbox.x) & (laser_points < (bbox.x + bbox.width)))
+                distances = distances[mask]
+                locations = obj_points[mask]
+                distance = np.median(distances)
+                location = np.median(locations, axis=0)
+                person.distance = distance
+                person.x = location[0]
+                person.y = location[1]
 
-                    if has_raised_hand(person):
-                        cv2.putText(frame, 'Start', (int(bbox.x), int(bbox.y)),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=2)
-                    elif has_crossed_hand(person):
-                        cv2.putText(frame, 'Stop', (int(bbox.x), int(bbox.y)),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=2)
-                    if self.laser_points is not None:
-                        distances = self.distances[
-                            np.where((self.laser_points > bbox.x) & (self.laser_points < (bbox.x + bbox.width)))]
-                        distance = np.median(distances)
-                        person.distance = distance
-                        # if self.visualize:
-                        #     cv2.putText(frame, str(np.round(distance, 2)), (int(bbox.x), int(bbox.y)),
-                        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        #                 (0, 0, 255))
-        if frame is not None:
-            cv2.imshow(self.node_name, frame)
-
-        self.human_list_publisher.publish(msg)
-
-        keystroke = cv2.waitKey(5)
-        if 32 <= keystroke < 128:
-            cc = chr(keystroke).lower()
-            if cc == 'q':
-                rospy.loginfo('You quit')
-                rospy.signal_shutdown('You wanted to quit')
+        self.human_list_publisher.publish(openpose_msg)
+        rospy.loginfo('Done laser camera openpose callback')
 
     def cleanup(self):
         rospy.loginfo('Cleaning up')
