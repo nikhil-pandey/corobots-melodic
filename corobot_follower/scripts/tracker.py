@@ -13,16 +13,6 @@ from corobot_follower.srv import EstimatePoseSrv, GesturesSrv, LocationSrv
 from corobot_follower.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb, HumanLocation
 from sklearn.neighbors import KNeighborsClassifier
 
-CAMERA_TOPIC = '/camera/image_raw'
-LIDAR_TOPIC = '/scan'
-OPENPOSE_SERVICE = 'openpose'
-GESTURE_SERVICE = 'gesture'
-LOCATION_SERVICE = 'location'
-GOTO_TOPIC = '/goto'
-ODOM_TOPIC = '/odom'
-TIME_DIFFERENCE_IMAGE_LIDAR = 1
-LOST_PERSON_THRESHOLD = 1
-
 
 class Tracker(object):
 
@@ -44,22 +34,24 @@ class Tracker(object):
         self.following_gestures = None
         self.last_person_feature_vector = None
 
-        self.gotoPublisher = rospy.Publisher(GOTO_TOPIC, HumanLocation, queue_size=1)
+        self.lost_person_threshold = int(rospy.get_param('time_wait_person_lost'))
+
+        self.gotoPublisher = rospy.Publisher(rospy.get_param('goto_command_topic'), HumanLocation, queue_size=1)
 
         rospy.loginfo('Waiting for services...')
-        rospy.wait_for_service(OPENPOSE_SERVICE)
-        rospy.wait_for_service(GESTURE_SERVICE)
-        rospy.wait_for_service(LOCATION_SERVICE)
-        self.openposeService = rospy.ServiceProxy(OPENPOSE_SERVICE, EstimatePoseSrv)
-        self.gestureService = rospy.ServiceProxy(GESTURE_SERVICE, GesturesSrv)
-        self.locationService = rospy.ServiceProxy(LOCATION_SERVICE, LocationSrv)
+        rospy.wait_for_service(rospy.get_param('openpose_service'))
+        rospy.wait_for_service(rospy.get_param('gesture_service'))
+        rospy.wait_for_service(rospy.get_param('location_service'))
+        self.openposeService = rospy.ServiceProxy(rospy.get_param('openpose_service'), EstimatePoseSrv)
+        self.gestureService = rospy.ServiceProxy(rospy.get_param('gesture_service'), GesturesSrv)
+        self.locationService = rospy.ServiceProxy(rospy.get_param('location_service'), LocationSrv)
 
         rospy.loginfo('Subscribing to camera and lidar...')
-        lidar_sub = message_filters.Subscriber(LIDAR_TOPIC, LaserScan, queue_size=20)
-        image_sub = message_filters.Subscriber(CAMERA_TOPIC, Image, queue_size=20)
-        odom_sub = message_filters.Subscriber(ODOM_TOPIC, Odometry, queue_size=20)
+        lidar_sub = message_filters.Subscriber(rospy.get_param('laser_topic'), LaserScan, queue_size=20)
+        image_sub = message_filters.Subscriber(rospy.get_param('image_topic'), Image, queue_size=20)
+        odom_sub = message_filters.Subscriber(rospy.get_param('odometry_topic'), Odometry, queue_size=20)
         message_filters.ApproximateTimeSynchronizer([image_sub, lidar_sub, odom_sub], 10,
-                                                    TIME_DIFFERENCE_IMAGE_LIDAR) \
+                                                    int(rospy.get_param('lidar_image_sync_diff'))) \
             .registerCallback(self.image_lidar_callback)
 
         rospy.on_shutdown(self.cleanup)
@@ -126,7 +118,7 @@ class Tracker(object):
             # Wait for some time before stoping to track
             if self.lost_person:
                 rospy.loginfo('Looks like we lost the person')
-                if time.time() - self.lost_person_time > LOST_PERSON_THRESHOLD:
+                if time.time() - self.lost_person_time > self.lost_person_threshold:
                     rospy.loginfo('Stopping following the person')
                     self.reset_following()
                     return
@@ -154,13 +146,12 @@ class Tracker(object):
         else:
             if humans.num_humans > 1:
                 rospy.loginfo('More than 1 person, stopping to follow for now')
-                knn = KNeighborsClassifier(n_neighbors=1)
+                knn = KNeighborsClassifier(n_neighbors=1, p=1)
                 knn.fit(X, y)
                 p = knn.predict(self.last_person_feature_vector.reshape(1, -1))
                 person_to_follow = p[0]
             else:
                 person_to_follow = 0
-
 
         feature_vector = X[np.where(y == person_to_follow)]
         following_gesture = gestures.gesture_list[person_to_follow]
@@ -214,8 +205,8 @@ class Tracker(object):
 
         for idx in range(len(humans.human_list)):
             f = [gestures.gesture_list[idx].facing_robot, gestures.gesture_list[idx].standing,
-                      locations.location_list[idx].x, locations.location_list[idx].y,
-                      locations.location_list[idx].distance]
+                 locations.location_list[idx].x, locations.location_list[idx].y,
+                 locations.location_list[idx].distance]
             if np.isnan(f[-1]):
                 continue
             X.append(f)

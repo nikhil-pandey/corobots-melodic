@@ -1,32 +1,18 @@
 #!/usr/bin/env python
 
-ros_mode = True
-try:
-    import pyopenpose as op
-    import cv2
-    import time
-    import sys
-    import numpy as np
-    from cv_bridge import CvBridge, CvBridgeError
-    import rospy
-    from corobot_follower.srv import EstimatePoseSrv, EstimatePoseSrvResponse
-    from corobot_follower.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
-except Exception as e:
-    print(e)
-    ros_mode = False
-
-params = {
-    'model_folder': '/home/np7803/openpose/models/',
-    'body': 1,
-    'model_pose': 'COCO',
-    'net_resolution': '368x368',
-}
+import pyopenpose as op
+import cv2
+import numpy as np
+from cv_bridge import CvBridge
+import rospy
+from corobot_follower.srv import EstimatePoseSrv, EstimatePoseSrvResponse
+from corobot_follower.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
 
 
 class OpenposeService:
-    def __init__(self):
+    def __init__(self, config):
         self.opWrapper = op.WrapperPython()
-        self.opWrapper.configure(params)
+        self.opWrapper.configure(config)
         self.opWrapper.start()
 
     def estimate_pose(self, img):
@@ -45,9 +31,16 @@ class OpenposeROSWrapper:
         cv2.namedWindow(self.cv_window_name)
         cv2.moveWindow(self.cv_window_name, 25, 75)
 
-        self.openposeService = OpenposeService()
+        config = {
+            'model_folder': rospy.get_param('model_folder'),
+            'body': 1,
+            'model_pose': rospy.get_param('model_pose', 'COCO'),
+            'net_resolution': rospy.get_param('net_resolution', '368x368'),
+        }
+
+        self.openposeService = OpenposeService(config)
         self.bridge = CvBridge()
-        rospy.Service('openpose', EstimatePoseSrv, self.estimate_pose)
+        rospy.Service(rospy.get_param('service_name', 'openpose'), EstimatePoseSrv, self.estimate_pose)
 
     def estimate_pose(self, message):
         frame = self.bridge.imgmsg_to_cv2(message.image)
@@ -95,13 +88,5 @@ class OpenposeROSWrapper:
 
 
 if __name__ == '__main__':
-    if ros_mode:
-        rospy.loginfo('Starting openpose service...')
-        OpenposeROSWrapper().run()
-    else:
-        print('Running non ros mode....')
-        service = OpenposeService()
-        imagePaths = op.get_images_on_directory('/home/np7803/openpose/examples/media')
-        for imagePath in imagePaths:
-            d = service.estimate_pose(cv2.imread(imagePath))
-            break
+    rospy.loginfo('Starting openpose service...')
+    OpenposeROSWrapper().run()

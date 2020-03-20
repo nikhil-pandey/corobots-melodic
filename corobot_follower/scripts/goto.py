@@ -1,23 +1,13 @@
 #!/usr/bin/env python
-# export ROS_MASTER_URI=http://corobot2.rit.edu:11311
-# docker exec -it confident_tharp bash
-# export ROS_MASTER_URI=http://corobot2.rit.edu:11311
-# rostopic pub /cmd_motor_state p2os_msgs/MotorState 1 --latch
-# cd ~/corobot_ws/src/np7803/scripts
+
 import math
-import sys
-import threading
 import time
 from collections import deque
-import numpy as np
 import rospy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from corobot_follower.msg import HumanLocation
 
-ODOMETRY_TOPIC = '/odom'
-GOTO_TOPIC = '/goto'
-VELOCITY_TOPIC = '/cmd_vel'
 TOLERANCE = 1
 T360 = math.pi * 2
 
@@ -25,9 +15,10 @@ T360 = math.pi * 2
 class GOTO(object):
     def __init__(self):
         rospy.init_node('goto', anonymous=True)
-        self.odom_subscriber = rospy.Subscriber(ODOMETRY_TOPIC, Odometry, self.odom_callback)
-        self.destination_subscriber = rospy.Subscriber(GOTO_TOPIC, HumanLocation, self.destination_callback)
-        self.velocity_publisher = rospy.Publisher(VELOCITY_TOPIC, Twist, queue_size=10)
+        self.odom_subscriber = rospy.Subscriber(rospy.get_param('odometry_topic'), Odometry, self.odom_callback)
+        self.destination_subscriber = rospy.Subscriber(rospy.get_param('goto_command_topic'), HumanLocation,
+                                                       self.destination_callback)
+        self.velocity_publisher = rospy.Publisher(rospy.get_param('velocity_topic'), Twist, queue_size=10)
         self.destinations = deque()
         self.x = 0.0
         self.y = 0.0

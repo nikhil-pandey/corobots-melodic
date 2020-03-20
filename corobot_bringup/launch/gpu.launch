@@ -1,10 +1,32 @@
 <launch>
-    <!--    <include file="$(find openpose_ros)/launch/openpose_ros.launch">-->
-    <!--        <arg name="display_output" value="true"/>-->
-    <!--    </include>-->
-    <node pkg="corobot_follower" type="openpose_service.py" name="openpose_service" output="screen"></node>
-    <node pkg="corobot_follower" type="gesture_service.py" name="gesture_service" output="screen"></node>
-    <node pkg="corobot_follower" type="location_service.py" name="location_service" output="screen"></node>
-    <node pkg="corobot_follower" type="tracker.py" name="tracker" output="screen"></node>
-    <node pkg="corobot_follower" type="goto.py" name="goto" output="screen"></node>
+    <node pkg="corobot_follower" type="openpose_service.py" name="openpose_service" output="screen">
+        <param name="service_name" value="openpose"/>
+        <param name="model_folder" value="/home/np7803/openpose/models/"/>
+        <param name="model_pose" value="COCO"/>
+        <param name="net_resolution" value="368x368"/>
+    </node>
+    <node pkg="corobot_follower" type="gesture_service.py" name="gesture_service" output="screen">
+        <param name="service_name" value="gesture"/>
+    </node>
+    <node pkg="corobot_follower" type="location_service.py" name="location_service" output="screen">
+        <param name="service_name" value="location"/>
+        <param name="laser_calibration" value="$(find camera_2d_lidar_calibration)/data/data.txt"/>
+        <param name="camera_calibration" value="$(find corobot_follower)/data/camera_intrinsic_calibration.txt"/>
+    </node>
+    <node pkg="corobot_follower" type="tracker.py" name="tracker" output="screen">
+        <param name="image_topic" value="/camera/image_raw" />
+        <param name="laser_topic" value="/scan" />
+        <param name="goto_command_topic" value="/goto" />
+        <param name="odometry_topic" value="/odom" />
+        <param name="openpose_service" value="openpose" />
+        <param name="gesture_service" value="gesture" />
+        <param name="location_service" value="location" />
+        <param name="time_wait_person_lost" value="1" />
+        <param name="lidar_image_sync_diff" value="1" />
+    </node>
+    <node pkg="corobot_follower" type="goto.py" name="goto" output="screen">
+        <param name="goto_command_topic" value="/goto" />
+        <param name="odometry_topic" value="/odom" />
+        <param name="velocity_topic" value="/cmd_vel" />
+    </node>
 </launch>

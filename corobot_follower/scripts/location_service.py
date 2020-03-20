@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import math
 
 import rospy
 import yaml
@@ -8,25 +7,14 @@ from corobot_follower.srv import LocationSrv, LocationSrvResponse
 from corobot_follower.msg import HumanLocationList, HumanLocation
 from pyquaternion import Quaternion
 import cv2
-from sensor_msgs.msg import LaserScan
 from sensor_msgs import point_cloud2
 import laser_geometry.laser_geometry as lg
-
-LOCATION_SERVICE = 'location'
-LASER_CALIBRATION_FILE = '/home/np7803/create_ws/src/camera_2d_lidar_calibration/data/calibration_result.txt'
-CAMERA_INTRINSIC_CALIBRATION_FILE = '/home/np7803/create_ws/src/corobot_follower/data/camera_intrinsic_calibration.txt'
 
 
 def read_transformation_matrix(file):
     with open(file, 'r') as f:
         data = f.read().split()
-        qx = float(data[0])
-        qy = float(data[1])
-        qz = float(data[2])
-        qw = float(data[3])
-        tx = float(data[4])
-        ty = float(data[5])
-        tz = float(data[6])
+        qx, qy, qz, qw, tx, ty, tz = tuple(map(float, data))
     q = Quaternion(qw, qx, qy, qz).transformation_matrix
     q[0, 3] = tx
     q[1, 3] = ty
@@ -69,12 +57,12 @@ class LocationService:
     def __init__(self):
         rospy.init_node('location_service')
         self.lp = lg.LaserProjection()
-        self.transformation_matrix = read_transformation_matrix(LASER_CALIBRATION_FILE)
+        self.transformation_matrix = read_transformation_matrix(rospy.get_param('laser_calibration'))
         self.translation_vector = self.transformation_matrix[:3, 3]
         self.rotation_matrix = self.transformation_matrix[:3, :3]
         self.rotation_vector, _ = cv2.Rodrigues(self.rotation_matrix)
-        self.lens, self.K, self.D = read_instrinsic_calibration(CAMERA_INTRINSIC_CALIBRATION_FILE)
-        rospy.Service(LOCATION_SERVICE, LocationSrv, self.project_location)
+        self.lens, self.K, self.D = read_instrinsic_calibration(rospy.get_param('camera_calibration'))
+        rospy.Service(rospy.get_param('service_name', 'location'), LocationSrv, self.project_location)
 
     def project_location(self, message):
         cloud = self.lp.projectLaser(message.scan)
