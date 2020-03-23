@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import rospy
-from corobot_follower.srv import EstimatePoseSrv, EstimatePoseSrvResponse
-from corobot_follower.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
+from corobot_openpose.srv import EstimatePoseSrv, EstimatePoseSrvResponse
+from corobot_openpose.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
 
 
 class OpenposeService:

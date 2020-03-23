@@ -9,8 +9,10 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, LaserScan
-from corobot_follower.srv import EstimatePoseSrv, GesturesSrv, LocationSrv
-from corobot_follower.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb, HumanLocation
+from corobot_openpose.srv import EstimatePoseSrv
+from corobot_openpose.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
+from corobot_follower.srv import GesturesSrv, LocationSrv
+from corobot_follower.msg import HumanLocation
 from sklearn.neighbors import KNeighborsClassifier
 
 

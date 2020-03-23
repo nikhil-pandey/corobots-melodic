@@ -1,3 +1,3 @@
-corobot_follower/OpenPoseHumanList human_list
+corobot_openpose/OpenPoseHumanList human_list
 ---
 corobot_follower/OpenPoseGestureList gestures

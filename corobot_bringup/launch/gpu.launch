@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="corobot_follower" type="openpose_service.py" name="openpose_service" output="screen">
+    <node pkg="corobot_openpose" type="openpose_service.py" name="openpose_service" output="screen">
         <param name="service_name" value="openpose"/>
         <param name="model_folder" value="/home/np7803/openpose/models/"/>
         <param name="model_pose" value="COCO"/>
@@ -13,7 +13,7 @@
         <param name="laser_calibration" value="$(find camera_2d_lidar_calibration)/data/calibration_result.txt"/>
         <param name="camera_calibration" value="$(find corobot_follower)/data/camera_intrinsic_calibration.txt"/>
     </node>
-    <node pkg="corobot_follower" type="tracker.py" name="tracker" output="screen">
+    <node pkg="corobot_follower" type="corobot_tracker.py" name="tracker" output="screen">
         <param name="image_topic" value="/camera/image_raw" />
         <param name="laser_topic" value="/scan" />
         <param name="goto_command_topic" value="/goto" />
