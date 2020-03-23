@@ -34,24 +34,24 @@ class Tracker(object):
         self.following_gestures = None
         self.last_person_feature_vector = None
 
-        self.lost_person_threshold = int(rospy.get_param('time_wait_person_lost'))
+        self.lost_person_threshold = int(rospy.get_param('~time_wait_person_lost'))
 
-        self.gotoPublisher = rospy.Publisher(rospy.get_param('goto_command_topic'), HumanLocation, queue_size=1)
+        self.gotoPublisher = rospy.Publisher(rospy.get_param('~goto_command_topic'), HumanLocation, queue_size=1)
 
         rospy.loginfo('Waiting for services...')
-        rospy.wait_for_service(rospy.get_param('openpose_service'))
-        rospy.wait_for_service(rospy.get_param('gesture_service'))
-        rospy.wait_for_service(rospy.get_param('location_service'))
-        self.openposeService = rospy.ServiceProxy(rospy.get_param('openpose_service'), EstimatePoseSrv)
-        self.gestureService = rospy.ServiceProxy(rospy.get_param('gesture_service'), GesturesSrv)
-        self.locationService = rospy.ServiceProxy(rospy.get_param('location_service'), LocationSrv)
+        rospy.wait_for_service(rospy.get_param('~openpose_service'))
+        rospy.wait_for_service(rospy.get_param('~gesture_service'))
+        rospy.wait_for_service(rospy.get_param('~location_service'))
+        self.openposeService = rospy.ServiceProxy(rospy.get_param('~openpose_service'), EstimatePoseSrv)
+        self.gestureService = rospy.ServiceProxy(rospy.get_param('~gesture_service'), GesturesSrv)
+        self.locationService = rospy.ServiceProxy(rospy.get_param('~location_service'), LocationSrv)
 
         rospy.loginfo('Subscribing to camera and lidar...')
-        lidar_sub = message_filters.Subscriber(rospy.get_param('laser_topic'), LaserScan, queue_size=20)
-        image_sub = message_filters.Subscriber(rospy.get_param('image_topic'), Image, queue_size=20)
-        odom_sub = message_filters.Subscriber(rospy.get_param('odometry_topic'), Odometry, queue_size=20)
+        lidar_sub = message_filters.Subscriber(rospy.get_param('~laser_topic'), LaserScan, queue_size=20)
+        image_sub = message_filters.Subscriber(rospy.get_param('~image_topic'), Image, queue_size=20)
+        odom_sub = message_filters.Subscriber(rospy.get_param('~odometry_topic'), Odometry, queue_size=20)
         message_filters.ApproximateTimeSynchronizer([image_sub, lidar_sub, odom_sub], 10,
-                                                    int(rospy.get_param('lidar_image_sync_diff'))) \
+                                                    int(rospy.get_param('~lidar_image_sync_diff'))) \
             .registerCallback(self.image_lidar_callback)
 
         rospy.on_shutdown(self.cleanup)

@@ -57,12 +57,12 @@ class LocationService:
     def __init__(self):
         rospy.init_node('location_service')
         self.lp = lg.LaserProjection()
-        self.transformation_matrix = read_transformation_matrix(rospy.get_param('laser_calibration'))
+        self.transformation_matrix = read_transformation_matrix(rospy.get_param('~laser_calibration'))
         self.translation_vector = self.transformation_matrix[:3, 3]
         self.rotation_matrix = self.transformation_matrix[:3, :3]
         self.rotation_vector, _ = cv2.Rodrigues(self.rotation_matrix)
-        self.lens, self.K, self.D = read_instrinsic_calibration(rospy.get_param('camera_calibration'))
-        rospy.Service(rospy.get_param('service_name', 'location'), LocationSrv, self.project_location)
+        self.lens, self.K, self.D = read_instrinsic_calibration(rospy.get_param('~camera_calibration'))
+        rospy.Service(rospy.get_param('~service_name', 'location'), LocationSrv, self.project_location)
 
     def project_location(self, message):
         cloud = self.lp.projectLaser(message.scan)

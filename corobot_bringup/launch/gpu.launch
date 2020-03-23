@@ -10,7 +10,7 @@
     </node>
     <node pkg="corobot_follower" type="location_service.py" name="location_service" output="screen">
         <param name="service_name" value="location"/>
-        <param name="laser_calibration" value="$(find camera_2d_lidar_calibration)/data/data.txt"/>
+        <param name="laser_calibration" value="$(find camera_2d_lidar_calibration)/data/calibration_result.txt"/>
         <param name="camera_calibration" value="$(find corobot_follower)/data/camera_intrinsic_calibration.txt"/>
     </node>
     <node pkg="corobot_follower" type="tracker.py" name="tracker" output="screen">

@@ -140,7 +140,7 @@ def is_crossing_hands(person):
 class GestureService:
     def __init__(self):
         rospy.init_node('openpose_gesture_service')
-        rospy.Service(rospy.get_param('service_name', 'gesture'), GesturesSrv, self.find_gestures)
+        rospy.Service(rospy.get_param('~~service_name', 'gesture'), GesturesSrv, self.find_gestures)
 
     def find_gestures(self, message):
         humans = message.human_list.human_list

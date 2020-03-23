@@ -32,15 +32,15 @@ class OpenposeROSWrapper:
         cv2.moveWindow(self.cv_window_name, 25, 75)
 
         config = {
-            'model_folder': rospy.get_param('model_folder'),
+            'model_folder': rospy.get_param('~model_folder'),
             'body': 1,
-            'model_pose': rospy.get_param('model_pose', 'COCO'),
-            'net_resolution': rospy.get_param('net_resolution', '368x368'),
+            'model_pose': rospy.get_param('~model_pose', 'COCO'),
+            'net_resolution': rospy.get_param('~net_resolution', '368x368'),
         }
 
         self.openposeService = OpenposeService(config)
         self.bridge = CvBridge()
-        rospy.Service(rospy.get_param('service_name', 'openpose'), EstimatePoseSrv, self.estimate_pose)
+        rospy.Service(rospy.get_param('~service_name', 'openpose'), EstimatePoseSrv, self.estimate_pose)
 
     def estimate_pose(self, message):
         frame = self.bridge.imgmsg_to_cv2(message.image)
