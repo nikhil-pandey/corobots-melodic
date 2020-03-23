@@ -15,7 +15,7 @@ T360 = math.pi * 2
 class GOTO(object):
     def __init__(self):
         rospy.init_node('goto', anonymous=True)
-        self.odom_subscriber = rospy.Subscriber(rospy.get_param('~~odometry_topic'), Odometry, self.odom_callback)
+        self.odom_subscriber = rospy.Subscriber(rospy.get_param('~odometry_topic'), Odometry, self.odom_callback)
         self.destination_subscriber = rospy.Subscriber(rospy.get_param('~goto_command_topic'), HumanLocation,
                                                        self.destination_callback)
         self.velocity_publisher = rospy.Publisher(rospy.get_param('~velocity_topic'), Twist, queue_size=10)
@@ -113,7 +113,7 @@ class GOTO(object):
         return speed
 
     def stop(self):
-        rospy.loginfo('Stopping the robot')
+        # rospy.loginfo('Stopping the robot')
         speed = Twist()
         speed.linear.x = 0
         speed.angular.z = 0

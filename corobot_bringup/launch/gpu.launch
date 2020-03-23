@@ -14,19 +14,19 @@
         <param name="camera_calibration" value="$(find corobot_follower)/data/camera_intrinsic_calibration.txt"/>
     </node>
     <node pkg="corobot_follower" type="corobot_tracker.py" name="tracker" output="screen">
-        <param name="image_topic" value="/camera/image_raw" />
-        <param name="laser_topic" value="/scan" />
-        <param name="goto_command_topic" value="/goto" />
-        <param name="odometry_topic" value="/odom" />
-        <param name="openpose_service" value="openpose" />
-        <param name="gesture_service" value="gesture" />
-        <param name="location_service" value="location" />
-        <param name="time_wait_person_lost" value="1" />
-        <param name="lidar_image_sync_diff" value="1" />
+        <param name="image_topic" value="/camera/image_raw/compressed"/>
+        <param name="laser_topic" value="/scan"/>
+        <param name="goto_command_topic" value="/goto"/>
+        <param name="odometry_topic" value="/odom"/>
+        <param name="openpose_service" value="openpose"/>
+        <param name="gesture_service" value="gesture"/>
+        <param name="location_service" value="location"/>
+        <param name="time_wait_person_lost" value="1" type="int"/>
+        <param name="lidar_image_sync_diff" value="3" type="int"/>
     </node>
     <node pkg="corobot_follower" type="goto.py" name="goto" output="screen">
-        <param name="goto_command_topic" value="/goto" />
-        <param name="odometry_topic" value="/odom" />
-        <param name="velocity_topic" value="/cmd_vel" />
+        <param name="goto_command_topic" value="/goto"/>
+        <param name="odometry_topic" value="/odom"/>
+        <param name="velocity_topic" value="/cmd_vel"/>
     </node>
 </launch>

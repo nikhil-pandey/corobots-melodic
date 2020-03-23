@@ -8,7 +8,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Image, LaserScan
+from sensor_msgs.msg import LaserScan, CompressedImage
 from corobot_openpose.srv import EstimatePoseSrv
 from corobot_openpose.msg import OpenPoseHumanList, OpenPoseHuman, BoundingBox, PointWithProb
 from corobot_follower.srv import GesturesSrv, LocationSrv
@@ -42,16 +42,22 @@ class Tracker(object):
 
         rospy.loginfo('Waiting for services...')
         rospy.wait_for_service(rospy.get_param('~openpose_service'))
+        rospy.loginfo('Openpose service at: %s' % (rospy.get_param('~openpose_service')))
         rospy.wait_for_service(rospy.get_param('~gesture_service'))
+        rospy.loginfo('Gesture service at: %s' % (rospy.get_param('~gesture_service')))
         rospy.wait_for_service(rospy.get_param('~location_service'))
+        rospy.loginfo('Location service at: %s' % (rospy.get_param('~location_service')))
         self.openposeService = rospy.ServiceProxy(rospy.get_param('~openpose_service'), EstimatePoseSrv)
         self.gestureService = rospy.ServiceProxy(rospy.get_param('~gesture_service'), GesturesSrv)
         self.locationService = rospy.ServiceProxy(rospy.get_param('~location_service'), LocationSrv)
 
         rospy.loginfo('Subscribing to camera and lidar...')
-        lidar_sub = message_filters.Subscriber(rospy.get_param('~laser_topic'), LaserScan, queue_size=20)
-        image_sub = message_filters.Subscriber(rospy.get_param('~image_topic'), Image, queue_size=20)
-        odom_sub = message_filters.Subscriber(rospy.get_param('~odometry_topic'), Odometry, queue_size=20)
+        lidar_sub = message_filters.Subscriber(rospy.get_param('~laser_topic'), LaserScan)
+        rospy.loginfo('Lidar topic: %s' % (rospy.get_param('~laser_topic')))
+        image_sub = message_filters.Subscriber(rospy.get_param('~image_topic'), CompressedImage)
+        rospy.loginfo('Image topic: %s' % (rospy.get_param('~image_topic')))
+        odom_sub = message_filters.Subscriber(rospy.get_param('~odometry_topic'), Odometry)
+        rospy.loginfo('Odometry Topic: %s' % (rospy.get_param('~odometry_topic')))
         message_filters.ApproximateTimeSynchronizer([image_sub, lidar_sub, odom_sub], 10,
                                                     int(rospy.get_param('~lidar_image_sync_diff'))) \
             .registerCallback(self.image_lidar_callback)
@@ -61,7 +67,8 @@ class Tracker(object):
 
     def image_lidar_callback(self, image_msg, laser_msg, odom_msg):
         try:
-            img = self.bridge.imgmsg_to_cv2(image_msg)
+            rospy.loginfo('Callback')
+            img = self.bridge.compressed_imgmsg_to_cv2(image_msg)
             humans = self.openposeService(image_msg).human_list
             gestures = self.gestureService(humans).gestures
             locations = self.locationService(humans, laser_msg).location_list
