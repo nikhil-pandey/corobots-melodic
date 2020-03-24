@@ -40,16 +40,13 @@ class OpenposeROSWrapper:
 
         self.openposeService = OpenposeService(config)
         self.bridge = CvBridge()
-        self.compressed = rospy.get_param('~use_compression')
         rospy.Service(rospy.get_param('~service_name', 'openpose'), EstimatePoseSrv, self.estimate_pose)
 
     def estimate_pose(self, message):
-        if self.compressed:
-            frame = self.bridge.compressed_imgmsg_to_cv2(message.image)
-        else:
-            frame = self.bridge.imgmsg_to_cv2(message.image)
+        rospy.loginfo('Got message in openpose service')
+        frame = self.bridge.compressed_imgmsg_to_cv2(message.image)
         data = self.openposeService.estimate_pose(frame)
-        self.visualize(data)
+        # self.visualize(data)
         human_list_msg = OpenPoseHumanList()
         human_list = []
         if len(data.poseKeypoints.shape):

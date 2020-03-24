@@ -67,12 +67,11 @@ class Tracker(object):
 
     def image_lidar_callback(self, image_msg, laser_msg, odom_msg):
         try:
-            rospy.loginfo('Callback')
-            img = self.bridge.compressed_imgmsg_to_cv2(image_msg)
             humans = self.openposeService(image_msg).human_list
             gestures = self.gestureService(humans).gestures
             locations = self.locationService(humans, laser_msg).location_list
-            self.visualize(img, humans, gestures, locations)
+            # img = self.bridge.compressed_imgmsg_to_cv2(image_msg)
+            # self.visualize(img, humans, gestures, locations)
             self.track(humans, gestures, self.to_global_locations(locations, self.decode_odometry(odom_msg)))
         except rospy.ServiceException as e:
             print('Service down!', e)

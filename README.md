@@ -3,7 +3,7 @@ Uses camera and 2D lidar to follow a person and follow gestures.
 
 ## Installation
 - Install [ROS Melodic](http://wiki.ros.org/melodic)
-- Install [Openpose](https://github.com/CMU-Perceptual-Computing-Lab/openpose)
+- Install [Openpose](https://github.com/CMU-Perceptual-Computing-Lab/openpose) (make sure to build for python2 and download coco)
 
 ### On Corobot
 ```bash
